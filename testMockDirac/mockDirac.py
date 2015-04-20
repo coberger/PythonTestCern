@@ -9,13 +9,17 @@ import random, inspect, functools, types, time
 
 from threading import Thread, RLock
 
-
+# lock for multi-threading
 lock = RLock()
 
 class Stack_Operation:
   """
+  This class permit to have the name, the order and the depth of each operation on files
 
-
+  Attributes:
+    stack    stack with the different operations
+    order    order of the last operation appended into the stack
+    depth    depth of the last operation appended into the stack
   """
 
   stack = list()
@@ -32,6 +36,7 @@ class Stack_Operation:
     """
     :param self: self reference
     :param operationName: name of the operation to append in the stack
+    append an operation into the stack
     """
 
     if  len( self.__class__.stack ) == 0 :
@@ -40,7 +45,12 @@ class Stack_Operation:
     self.__class__.order += 1
     self.__class__.depth += 1
 
+
   def popOperation( self ):
+    """
+    :param self: self reference
+    Pop an operation from the stack
+    """
     self.__class__.depth -= 1
     return self.__class__.stack.pop()
 
