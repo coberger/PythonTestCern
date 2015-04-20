@@ -1,10 +1,11 @@
 # from DIRAC
-from DIRAC      import S_OK, gConfig, gLogger, S_ERROR
-from DIRAC.DataManagementSystem.Client.OperationFile import OperationFile
+from DIRAC              import S_OK, gConfig, gLogger, S_ERROR
+from OperationFile      import OperationFile
+from OperationSequence  import OperationSequence
 
 # from sqlalchemy
 from sqlalchemy import create_engine, func, Table, Column, MetaData, ForeignKey, Integer, String, DateTime, Enum, BLOB, BigInteger, distinct
-from sqlalchemy.orm import mapper, sessionmaker
+from sqlalchemy.orm import mapper, sessionmaker, relationship
 
 
 
@@ -25,16 +26,16 @@ operationFileTable = Table( 'OperationFile', metadata,
 mapper( OperationFile, operationFileTable )
 
 
-# Metadata instance that is used to bind the engine, Object and tables
-metadata = MetaData()
-operationFileTable = Table( 'OperationFile', metadata,
+operationSequenceTable = Table( 'OperationSequence', metadata,
                     Column( 'ID', Integer, primary_key = True ),
                     Column( 'IDOpFile', Integer,
                             ForeignKey( 'OperationFile.ID', ondelete = 'CASCADE' ),
                             nullable = False ),
+                    Column( 'Order', Integer ),
+                    Column( 'Depth', Integer, primary_key = True ),
                    mysql_engine = 'InnoDB' )
 
-mapper( OperationFile, operationFileTable )
+mapper( OperationSequence, operationSequenceTable )
 
 class DataBase( object ):
 
@@ -59,17 +60,37 @@ class DataBase( object ):
   def putOperationFile( self, operationFile ):
     session = self.DBSession( expire_on_commit = True )
     try:
-
-      # request = session.merge( operationFile )
+      # operationFile = session.merge( operationFile )
       session.add( operationFile )
       session.commit()
-      session.expunge_all()
+      # session.expunge_all()
+
+      print operationFile.ID
 
       return S_OK( operationFile )
 
     except Exception, e:
       session.rollback()
-      gLogger.error( 'impossible d inserer dans la table' )
+      gLogger.error( 'impossible d inserer dans la table OperationFile' )
+      return S_ERROR( "putRequest: unexpected exception %s" % e )
+    finally:
+      session.close()
+
+
+  def putOperationSequence( self, operationSequence ):
+    session = self.DBSession( expire_on_commit = True )
+    try:
+
+      # operationFile = session.merge( operationFile )
+      session.add( operationSequence )
+      session.commit()
+      # session.expunge_all()
+
+      return S_OK( operationSequence )
+
+    except Exception, e:
+      session.rollback()
+      gLogger.error( 'impossible d inserer dans la table OperationSequence' )
       return S_ERROR( "putRequest: unexpected exception %s" % e )
     finally:
       session.close()
