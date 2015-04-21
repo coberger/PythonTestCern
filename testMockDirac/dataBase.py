@@ -15,11 +15,12 @@ metadata = MetaData()
 operationFileTable = Table( 'OperationFile', metadata,
                    Column( 'ID', Integer, primary_key = True ),
                    Column( 'CreationTime', DateTime ),
+                   Column( 'name', String( 255 ) ),
                    Column( 'Who', String( 255 ) ),
                    Column( 'Status', Enum( 'Done', 'Failed' ), server_default = 'Failed' ),
-                   Column( 'LFN', String( 255 ) ),
-                   Column( 'SESource', String( 255 ) ),
-                   Column( 'SEDestination', String( 255 ) ),
+                   Column( 'lfn', String( 255 ) ),
+                   Column( 'srcSE', String( 255 ) ),
+                   Column( 'dstSE', String( 255 ) ),
                    Column( 'blob', String( 2048 ) ),
                    mysql_engine = 'InnoDB' )
 
@@ -27,12 +28,13 @@ mapper( OperationFile, operationFileTable )
 
 
 operationSequenceTable = Table( 'OperationSequence', metadata,
-                    Column( 'ID', Integer, primary_key = True ),
+                    Column( 'PM', Integer, primary_key = True ),
+                    Column( 'ID', Integer ),
                     Column( 'IDOpFile', Integer,
                             ForeignKey( 'OperationFile.ID', ondelete = 'CASCADE' ),
                             nullable = False ),
                     Column( 'Order', Integer ),
-                    Column( 'Depth', Integer, primary_key = True ),
+                    Column( 'Depth', Integer ),
                    mysql_engine = 'InnoDB' )
 
 mapper( OperationSequence, operationSequenceTable )
@@ -71,8 +73,8 @@ class DataBase( object ):
 
     except Exception, e:
       session.rollback()
-      gLogger.error( 'impossible d inserer dans la table OperationFile' )
-      return S_ERROR( "putRequest: unexpected exception %s" % e )
+      gLogger.error( 'impossible to insert into table OperationFile' )
+      return S_ERROR( "putOperationFile: unexpected exception %s" % e )
     finally:
       session.close()
 
@@ -84,14 +86,22 @@ class DataBase( object ):
       # operationFile = session.merge( operationFile )
       session.add( operationSequence )
       session.commit()
-      # session.expunge_all()
+      session.expunge_all()
 
       return S_OK( operationSequence )
 
     except Exception, e:
       session.rollback()
-      gLogger.error( 'impossible d inserer dans la table OperationSequence' )
+      gLogger.error( 'impossible to insert into table OperationSequence' )
       return S_ERROR( "putRequest: unexpected exception %s" % e )
     finally:
       session.close()
+
+  def getMaxIdOperationSequence( self ):
+    session = self.DBSession( expire_on_commit = True )
+    res = session.query( func.max( OperationSequence.ID ) ).scalar()
+    if not res :
+      res = 0
+    return res
+
 

@@ -12,7 +12,7 @@ class OperationSequence( object ):
     """
 
 
-    # self.who = None
+    self.ID = None
     self.IDOpFile = None
     self.Order = None
     self.Depth = None

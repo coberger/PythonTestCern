@@ -18,10 +18,11 @@ class OperationFile( object ):
     self.CreationTime = now
 
     self.Status = "Failed"
-    # self.who = None
-    self.LFN = None
-    self.SESource = None
-    self.SEDestination = None
+    self.who = None
+    self.name = None
+    self.lfn = None
+    self.srcSE = None
+    self.dstSE = None
     self.blob = None
 
     for key, value in fromDict.items():

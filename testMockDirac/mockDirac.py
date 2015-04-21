@@ -1,16 +1,19 @@
-from DIRAC              import S_OK, gLogger
+from DIRAC              import S_OK, gLogger, S_ERROR
 # from DIRAC.DataManagementSystem.Client.TestClient     import TestClient
 
 
 from dataBase           import DataBase
 from OperationFile      import OperationFile
+from OperationSequence      import OperationSequence
 
 import random, inspect, functools, types, time
 
 from threading import Thread, RLock
+from compiler.misc import Stack
 
 # lock for multi-threading
 lock = RLock()
+
 
 class Stack_Operation:
   """
@@ -20,11 +23,14 @@ class Stack_Operation:
     stack    stack with the different operations
     order    order of the last operation appended into the stack
     depth    depth of the last operation appended into the stack
+    parent    the first operation's name
   """
 
   stack = list()
   order = 0
   depth = 0
+  sequence_id = 0
+  parent = None
 
   def __init__( self):
     """
@@ -38,9 +44,11 @@ class Stack_Operation:
     :param operationName: name of the operation to append in the stack
     append an operation into the stack
     """
-
-    if  len( self.__class__.stack ) == 0 :
+    if  len( self.__class__.stack ) == 0:
+      self.__class__.parent = None
       self.__class__.order = 0
+      self.__class__.depth = 0
+      self.__class__.sequence_id = None
     self.__class__.stack.append( operationName )
     self.__class__.order += 1
     self.__class__.depth += 1
@@ -55,6 +63,22 @@ class Stack_Operation:
     return self.__class__.stack.pop()
 
 
+  def setParent(self, par):
+    self.__class__.parent = par
+
+
+  def getParent( self ) :
+    return self.__class__.parent
+
+
+  def isParentSet( self ):
+    if not self.__class__.parent :
+      return S_ERROR( "Parent not set" )
+    else :
+      return S_OK()
+
+
+
 
 
 class Decorator_(object):
@@ -63,44 +87,92 @@ class Decorator_(object):
   def __init__( self, fonc ):
 
     self.fonc = fonc
-
-    self.parent = None
+    self.name = None
+    self.order = None
 
     functools.wraps( fonc )( self )
 
   def __get__( self, inst, owner = None ):
     return types.MethodType( self, inst )
 
+
+
   def __call__( self, *args, **kwargs ):
     """ method called each time when a decorate function is called
         get information about the function and create a stack of functions called
     """
+    self.name = str( self.fonc.__name__ )
+    stack = Stack_Operation()
+    stack.appendOperation( self.name )
+    self.order = stack.order
 
-    # get key and value of args for create object to add in dataBase
+    # here the test to know if it's the first operation and if we have to set the parent
+    res = stack.isParentSet()
+    if not res["OK"]:
+      print self.fonc.__name__
+      ( frame, filename, line_number, function_name,
+              lines, index ) = inspect.getouterframes( inspect.currentframe() )[1]
+      stack.setParent( str( filename ) + ' ' + str( function_name ) + ' ' + str( line_number ) )
+
+
+    #===========================================================================
+    # print 'order : ', stack.order, ' depth : ', stack.depth , ' operation name : ', self.name
+    #===========================================================================
+
+    result = self.fonc( *args, **kwargs )
+
+    db = DataBase()
+    res = db.createTables()
+    if not res["OK"]:
+      gLogger.error( ' error' )
+      exit()
+
+
+
+    # get key of fonc's arguments
     foncArgs = inspect.getargspec( self.fonc )[0]
-    dico = dict()
+
+    opArgs = dict()
     cpt = 0
+    # create a dict with keys and values of fonc's arguments
     while cpt < len( args ) :
       if foncArgs[cpt] is not 'self' :
-        dico[foncArgs[cpt]] = args[cpt]
+        if foncArgs[cpt] is 'lfns' :
+          if isinstance( args[cpt] , list ):
+            opArgs['lfn'] = str( args[cpt][0] )
+          else :
+            opArgs['lfn'] = str( args[cpt] )
+        else :
+          opArgs[ str( foncArgs[cpt] )] = str( args[cpt] )
+      else :
+        opArgs[ str( foncArgs[cpt] )] = str( args[cpt] )
       cpt += 1
 
-    # print dico
+    opArgs['name'] = self.name
+    opArgs['Who'] = stack.parent
+    operationFile = OperationFile( opArgs )
 
-    ( frame, filename, line_number, function_name,
-         lines, index ) = inspect.getouterframes( inspect.currentframe() )[1]
+    res = db.putOperationFile( operationFile )
+    if not res["OK"]:
+      gLogger.error( ' error' , res['Message'] )
+      exit()
 
-    stack = Stack_Operation()
-    stack.appendOperation( str( filename ) + ' ' + str( self.fonc.__name__ ) + ' ' + str( line_number ) + ' ' + str( lines ) )
+    operationFile = res['Value']
 
-    if not self.parent  :
-      ( frame, filename, line_number, function_name,
-              lines, index ) = inspect.getouterframes( inspect.currentframe() )[2]
-      self.parent = str( filename ) + ' ' + str( function_name ) + ' ' + str( line_number ) + ' ' + str( lines )
+    if not Stack_Operation.sequence_id :
+      Stack_Operation.sequence_id = db.getMaxIdOperationSequence() + 1
 
-    print 'order : ', stack.order, ' depth : ', stack.depth , ' operation name : ', stack.stack[stack.depth - 1]
-    # print 'parent ', self.parent
-    result = self.fonc( *args, **kwargs )
+    sequenceArgs = dict()
+    sequenceArgs['ID'] = stack.sequence_id
+    sequenceArgs['IDOpFile'] = operationFile.ID
+    sequenceArgs['Order'] = self.order
+    sequenceArgs['Depth'] = stack.depth
+
+    operationSequence = OperationSequence( sequenceArgs )
+    res = db.putOperationSequence( operationSequence )
+    if not res["OK"]:
+      gLogger.error( ' error' , res['Message'] )
+      exit()
 
     stack.popOperation()
 
@@ -173,7 +245,6 @@ class TestDataManager:
   @Decorator_
   def replicateAndRegister(self, lfns, srcSE, dstSE, timeout, protocol = 'srm'):
     """ replicate a file from one se to the other and register the new replicas"""
-
     with lock :
       fc = TestFileCatalog()
       se = TestStorageElement( dstSE )
@@ -234,22 +305,24 @@ class ClientA( Thread ):
 
   @Decorator_
   def doSomething(self):
+    print Stack_Operation.parent
     with lock :
       dm = TestDataManager()
       res = dm.replicateAndRegister( [1, 2, 3, 4, 5, 6, 7], 'sourceSE', 'destSE', 1 )
       s = res['Value']['Successful']
       f = res['Value']['Failed']
-      #===========================================================================
+      #=========================================================================
       # print "s : %s" % s
       # print "f : %s" % f
-      #===========================================================================
+      #=========================================================================
 
       res = TestStorageElement( 'sourceSE' ).getFileSize( s )
-      #===========================================================================
+      #=========================================================================
       # print res
-      #===========================================================================
+      #=========================================================================
 
   def run( self ):
+    print Stack_Operation.parent
     with lock :
       self.doSomething()
 
@@ -257,6 +330,7 @@ class ClientB( Thread ):
 
   def __init__( self ):
     Thread.__init__( self )
+
 
   @Decorator_
   def doSomethingElse(self):
@@ -279,42 +353,32 @@ class ClientB( Thread ):
     with lock :
       self.doSomethingElse()
 
-c1 = ClientA()
-c2 = ClientA()
-c3 = ClientB()
-c4 = ClientB()
 
+c1 = ClientA()
+#===============================================================================
+# c2 = ClientA()
+# c3 = ClientB()
+# c4 = ClientB()
+#===============================================================================
 
 c1.start()
-c3.start()
-c2.start()
-c4.start()
-
+#===============================================================================
+# c3.start()
+# c2.start()
+# c4.start()
+#===============================================================================
 
 c1.join()
-c2.join()
-c3.join()
-c4.join()
+#===============================================================================
+# c2.join()
+# c3.join()
+# c4.join()
+#===============================================================================
+
 
 
 
-#===============================================================================
-# cb = ClientB()
-# cb.doSomethingElse()
-#===============================================================================
 
-#===============================================================================
-# db = DataBase()
-# res = db.createTables()
-# if not res["OK"]:
-#   gLogger.error( ' error' )
-#   exit()
-# gLogger.verbose( 'ok creation table' )
-#
-# operationFile = OperationFile( args )
-# res = db.putOperationFile( operationFile )
-# print res['Value'].ID
-#===============================================================================
 
 
 
