@@ -12,7 +12,6 @@ class OperationFile( object ):
     :param self: self reference
     :param dict fromDict: attributes dictionary
     """
-    self._parent = None
 
     now = datetime.datetime.utcnow().replace( microsecond = 0 )
     self.CreationTime = now

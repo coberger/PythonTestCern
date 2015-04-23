@@ -97,6 +97,7 @@ class DataBase( object ):
     finally:
       session.close()
 
+
   def getMaxIdOperationSequence( self ):
     session = self.DBSession( expire_on_commit = True )
     res = session.query( func.max( OperationSequence.ID ) ).scalar()
