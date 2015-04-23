@@ -15,7 +15,7 @@ class OperationFile( object ):
 
     now = datetime.datetime.utcnow().replace( microsecond = 0 )
     self.CreationTime = now
-
+    self.children = []
     self.Status = "Failed"
     self.who = None
     self.name = None
@@ -23,6 +23,7 @@ class OperationFile( object ):
     self.srcSE = None
     self.dstSE = None
     self.blob = None
+    self.order = None
 
     for key, value in fromDict.items():
       if type( value ) in StringTypes:
@@ -30,3 +31,6 @@ class OperationFile( object ):
 
       if value:
         setattr( self, key, value )
+
+  def addChild( self, child ):
+    self.children.append( child )

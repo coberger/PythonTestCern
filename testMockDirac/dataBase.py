@@ -4,7 +4,7 @@ from OperationFile      import OperationFile
 from OperationSequence  import OperationSequence
 
 # from sqlalchemy
-from sqlalchemy import create_engine, func, Table, Column, MetaData, ForeignKey, Integer, String, DateTime, Enum, BLOB, BigInteger, distinct
+from sqlalchemy import create_engine, func, Table, Column, MetaData, ForeignKey, Integer, String, DateTime, Enum, BLOB
 from sqlalchemy.orm import mapper, sessionmaker, relationship
 
 
@@ -22,32 +22,38 @@ operationFileTable = Table( 'OperationFile', metadata,
                    Column( 'srcSE', String( 255 ) ),
                    Column( 'dstSE', String( 255 ) ),
                    Column( 'blob', String( 2048 ) ),
+                   Column( 'parent_id', Integer, ForeignKey( 'OperationFile.ID' ) ),
+                   Column( 'order', Integer ),
+                   # Column( 'parent_id', Integer ),
                    mysql_engine = 'InnoDB' )
 
-mapper( OperationFile, operationFileTable )
+mapper( OperationFile, operationFileTable  , properties = { 'children' : relationship( OperationFile ) } )
 
 
-operationSequenceTable = Table( 'OperationSequence', metadata,
-                    Column( 'PM', Integer, primary_key = True ),
-                    Column( 'ID', Integer ),
-                    Column( 'IDOpFile', Integer,
-                            ForeignKey( 'OperationFile.ID', ondelete = 'CASCADE' ),
-                            nullable = False ),
-                    Column( 'Order', Integer ),
-                    Column( 'Depth', Integer ),
-                   mysql_engine = 'InnoDB' )
-
-mapper( OperationSequence, operationSequenceTable )
+#===============================================================================
+# operationSequenceTable = Table( 'OperationSequence', metadata,
+#                     Column( 'PM', Integer, primary_key = True ),
+#                     Column( 'ID', Integer ),
+#                     Column( 'IDOpFile', Integer,
+#                             ForeignKey( 'OperationFile.ID', ondelete = 'CASCADE' ),
+#                             nullable = False ),
+#                     Column( 'Order', Integer ),
+#                     Column( 'Depth', Integer ),
+#                    mysql_engine = 'InnoDB' )
+#
+# mapper( OperationSequence, operationSequenceTable )
+#===============================================================================
 
 class DataBase( object ):
 
   def __init__( self, systemInstance = 'Default' ):
 
 
-    self.engine = create_engine( 'mysql://Dirac:corent@127.0.0.1/testDiracDB' )
+    self.engine = create_engine( 'mysql://Dirac:corent@127.0.0.1/testDiracDB', echo = True )
 
     metadata.bind = self.engine
     self.DBSession = sessionmaker( bind = self.engine )
+
 
 
   def createTables( self ):
@@ -66,8 +72,6 @@ class DataBase( object ):
       session.add( operationFile )
       session.commit()
       # session.expunge_all()
-
-      print operationFile.ID
 
       return S_OK( operationFile )
 

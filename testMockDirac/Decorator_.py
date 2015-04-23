@@ -34,8 +34,6 @@ class Decorator_( object ):
     """
     self.name = self.fonc.__name__
 
-    DictStackOperation.getStackOperation( str( current_thread().ident ) ).appendOperation( self.name )
-    self.order = DictStackOperation.getStackOperation( str( current_thread().ident ) ).order
 
     # here the test to know if it's the first operation and if we have to set the parent
     res = DictStackOperation.getStackOperation( str( current_thread().ident ) ).isParentSet()
@@ -44,27 +42,13 @@ class Decorator_( object ):
               lines, index ) = inspect.getouterframes( inspect.currentframe() )[1]
       DictStackOperation.getStackOperation( str( current_thread().ident ) ).setParent( str( filename ) + ' ' + str( function_name ) + ' ' + str( line_number ) )
 
+    foncArgs = self.getFoncArgs( *args )
+
+    DictStackOperation.getStackOperation( str( current_thread().ident ) ).appendOperation( self.name, foncArgs )
+
+
     # call of the fonc
     result = self.fonc( *args, **kwargs )
-
-    # create tables
-    # self.createTables()
-
-
-    # get key and values of fonc's arguments
-    foncArgs = self.getFoncArgs( *args )
-    operationFile = OperationFile( foncArgs )
-
-    # insert into database
-    res = self.putOperationFile( operationFile )
-
-    operationFile = res['Value']
-
-    if not DictStackOperation.getStackOperation( str( current_thread().ident ) ).sequence_id :
-      DictStackOperation.getStackOperation( str( current_thread().ident ) ).sequence_id = DataBase().getMaxIdOperationSequence() + 1
-
-    operationSequence = OperationSequence( self.getSequenceArgs( operationFile.ID ) )
-    res = self.putOperationSequence( operationSequence )
 
     res = DictStackOperation.getStackOperation( str( current_thread().ident ) ).popOperation()
 
@@ -99,13 +83,15 @@ class Decorator_( object ):
     return opArgs
 
 
-  def getSequenceArgs( self, ID ):
-    """create a dict with key and value of the sequence of operation"""
-    sequenceArgs = dict()
-    sequenceArgs['ID'] = DictStackOperation.getStackOperation( str( current_thread().ident ) ).sequence_id
-    sequenceArgs['IDOpFile'] = ID
-    sequenceArgs['Order'] = self.order
-    sequenceArgs['Depth'] = DictStackOperation.getStackOperation( str( current_thread().ident ) ).depth
+  #=============================================================================
+  # def getSequenceArgs( self, ID ):
+  #   """create a dict with key and value of the sequence of operation"""
+  #   sequenceArgs = dict()
+  #   sequenceArgs['ID'] = DictStackOperation.getStackOperation( str( current_thread().ident ) ).sequence_id
+  #   sequenceArgs['IDOpFile'] = ID
+  #   sequenceArgs['Order'] = self.order
+  #   sequenceArgs['Depth'] = DictStackOperation.getStackOperation( str( current_thread().ident ) ).depth
+  #=============================================================================
 
     return sequenceArgs
 
@@ -119,19 +105,12 @@ class Decorator_( object ):
       exit()
 
 
-  def putOperationFile( self, operationFile ):
-    """ put an OperationFile into database """
-    db = DataBase()
-    res = db.putOperationFile( operationFile )
-    if not res["OK"]:
-      gLogger.error( ' error' , res['Message'] )
-      exit()
-    return res
+
 
 
   def putOperationSequence( self, operationSequence ):
     """ put an operationSequence into database """
-    db = DataBase()
+    db = getDataBase()
     res = db.putOperationSequence( operationSequence )
     if not res["OK"]:
       gLogger.error( ' error' , res['Message'] )
