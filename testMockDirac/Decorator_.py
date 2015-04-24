@@ -83,36 +83,3 @@ class Decorator_( object ):
     return opArgs
 
 
-  #=============================================================================
-  # def getSequenceArgs( self, ID ):
-  #   """create a dict with key and value of the sequence of operation"""
-  #   sequenceArgs = dict()
-  #   sequenceArgs['ID'] = DictStackOperation.getStackOperation( str( current_thread().ident ) ).sequence_id
-  #   sequenceArgs['IDOpFile'] = ID
-  #   sequenceArgs['Order'] = self.order
-  #   sequenceArgs['Depth'] = DictStackOperation.getStackOperation( str( current_thread().ident ) ).depth
-  #=============================================================================
-
-    return sequenceArgs
-
-
-  def createTables( self ):
-    """ create tables into dataBase"""
-    db = DataBase()
-    res = db.createTables()
-    if not res["OK"]:
-      gLogger.error( ' error ' , res['Message'] )
-      exit()
-
-
-
-
-
-  def putOperationSequence( self, operationSequence ):
-    """ put an operationSequence into database """
-    db = getDataBase()
-    res = db.putOperationSequence( operationSequence )
-    if not res["OK"]:
-      gLogger.error( ' error' , res['Message'] )
-      exit()
-    return res

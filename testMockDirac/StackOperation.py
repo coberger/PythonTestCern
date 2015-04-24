@@ -1,8 +1,9 @@
-from DIRAC                  import S_OK, S_ERROR
+from DIRAC                  import S_OK, S_ERROR, gLogger
 
 from OperationFile          import OperationFile
-from OperationSequence      import OperationSequence
 from dataBase               import DataBase
+from Sequence               import Sequence
+
 
 
 class StackOperation :
@@ -47,7 +48,8 @@ class StackOperation :
       child.order = cpt
       cpt += 1
 
-    self.insertOperations( res )
+    if len( self.stack ) == 0 :
+      self.insertSequence( Sequence( res ) )
 
     return res
 
@@ -66,23 +68,27 @@ class StackOperation :
       return S_OK()
 
 
-  def putOperationFile( self, operationFile ):
-    """ put an OperationFile into database """
 
-    res = db.putOperationFile( operationFile )
+  def insertOperations( self, fileOperations ):
+    """ insert in bloc into database a list of operation"""
+    db = DataBase()
+    db.createTables()
+    res = db.putOperationFile( fileOperations )
     if not res["OK"]:
       gLogger.error( ' error' , res['Message'] )
       exit()
     return res
 
 
-  def insertOperations( self, fileOperations ):
+  def insertSequence( self, sequence ):
     """ insert in bloc into database a list of operation"""
     db = DataBase()
     db.createTables()
-    db.putOperationFile( fileOperations )
-
-
+    res = db.putSequence( sequence )
+    if not res["OK"]:
+      gLogger.error( ' error' , res['Message'] )
+      exit()
+    return res
 
 
 

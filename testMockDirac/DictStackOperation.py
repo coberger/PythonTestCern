@@ -1,8 +1,8 @@
-from threading import Lock
-from StackOperation import StackOperation
+from threading          import Lock
+from StackOperation     import StackOperation
 
 class DictStackOperation :
-  """ contains all stackOperation needed"""
+  """ contains all stackOperation needed by different thread"""
 
   dict = dict()
   # lock for multi-threading

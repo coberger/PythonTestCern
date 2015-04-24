@@ -121,12 +121,13 @@ class TestDataManager:
 
 class ClientA( Thread ):
 
-  def __init__( self ):
+  def __init__( self, lfn ):
     Thread.__init__( self )
+    self.lfn = lfn
 
   def doSomething(self):
     dm = TestDataManager()
-    res = dm.replicateAndRegister( [1, 2, 3, 4, 5, 6, 7], 'sourceSE', 'destSE', 1 )
+    res = dm.replicateAndRegister( self.lfn, 'sourceSE', 'destSE', 1 )
     s = res['Value']['Successful']
     f = res['Value']['Failed']
     #=========================================================================
@@ -167,10 +168,10 @@ class ClientB( Thread ):
     self.doSomethingElse()
 
 
-c1 = ClientA()
-c2 = ClientA()
-c3 = ClientA()
-c4 = ClientA()
+c1 = ClientA( [1, 2] )
+c2 = ClientA( [ 3, 4] )
+c3 = ClientA( [5, 6] )
+c4 = ClientA( [ 7] )
 
 c1.start()
 c2.start()
@@ -181,13 +182,4 @@ c1.join()
 c2.join()
 c3.join()
 c4.join()
-
-
-
-#===========================================================================
-# print 'order : ', stack.order, ' depth : ', stack.depth , ' operation name : ', self.name
-#===========================================================================
-
-
-
 

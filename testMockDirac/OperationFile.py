@@ -4,6 +4,9 @@ from types import StringTypes
 
 
 class OperationFile( object ):
+  """
+  describe an operation on files
+  """
 
   _datetimeFormat = '%Y-%m-%d %H:%M:%S'
 
@@ -24,6 +27,7 @@ class OperationFile( object ):
     self.dstSE = None
     self.blob = None
     self.order = None
+    self.sequence = None
 
     for key, value in fromDict.items():
       if type( value ) in StringTypes:
@@ -33,4 +37,7 @@ class OperationFile( object ):
         setattr( self, key, value )
 
   def addChild( self, child ):
+    """
+    Add a child into the children list
+    """
     self.children.append( child )
