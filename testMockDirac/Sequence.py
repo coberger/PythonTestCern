@@ -14,7 +14,3 @@ class Sequence( object ) :
       self.operations.append( element )
       for child in element.children :
         self.stack.append( child )
-
-
-
-

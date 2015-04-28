@@ -1,8 +1,9 @@
-from dataBase               import DataBase
 from OperationFile          import OperationFile
 from OperationSequence      import OperationSequence
 from DictStackOperation     import DictStackOperation
 from StackOperation         import StackOperation
+from StatusOperation        import StatusOperation
+from LFN                    import LFN
 
 import inspect, functools, types
 
@@ -10,6 +11,36 @@ from threading              import current_thread
 
 from DIRAC                  import gLogger
 
+
+
+def caller_name( skip = 2 ):
+  """Get a name of a caller in the format module.class.method
+
+     `skip` specifies how many levels of stack to skip while getting caller
+     name. skip=1 means "who calls me", skip=2 "who calls my caller" etc.
+
+     An empty string is returned if skipped levels exceed stack height
+  """
+  stack = inspect.stack()
+  start = 0 + skip
+  if len( stack ) < start + 1:
+    return ''
+  parentframe = stack[start][0]
+  name = []
+  module = inspect.getmodule( parentframe )
+  if module:
+      name.append( module.__name__ )
+
+  if 'self' in parentframe.f_locals:
+      # I don't know any way to detect call from the object method
+      # XXX: there seems to be no way to detect static method call - it will
+      #      be just a function call
+      name.append( parentframe.f_locals['self'].__class__.__name__ )
+  codename = parentframe.f_code.co_name
+  if codename != '<module>':  # top level usually
+      name.append( codename )  # function or a method
+  del parentframe
+  return ".".join( name )
 
 
 class Decorator_( object ):
@@ -34,21 +65,20 @@ class Decorator_( object ):
     """
     self.name = self.fonc.__name__
 
-
     # here the test to know if it's the first operation and if we have to set the parent
-    res = DictStackOperation.getStackOperation( str( current_thread().ident ) ).isParentSet()
+    res = DictStackOperation.getStackOperation( str( current_thread().ident ) ).isCallerSet()
     if not res["OK"]:
-      ( frame, filename, line_number, function_name,
-              lines, index ) = inspect.getouterframes( inspect.currentframe() )[1]
-      DictStackOperation.getStackOperation( str( current_thread().ident ) ).setParent( str( filename ) + ' ' + str( function_name ) + ' ' + str( line_number ) )
+      DictStackOperation.getStackOperation( str( current_thread().ident ) ).setCaller( caller_name() )
+
 
     foncArgs = self.getFoncArgs( *args )
-
-    DictStackOperation.getStackOperation( str( current_thread().ident ) ).appendOperation( self.name, foncArgs )
-
+    op = DictStackOperation.getStackOperation( str( current_thread().ident ) ).appendOperation( self.name, foncArgs )
 
     # call of the fonc
     result = self.fonc( *args, **kwargs )
+    print result
+
+    self.getStatusOperation( result, op )
 
     res = DictStackOperation.getStackOperation( str( current_thread().ident ) ).popOperation()
 
@@ -66,20 +96,60 @@ class Decorator_( object ):
     # create a dict with keys and values of fonc's arguments
     while cpt < len( args ) :
       if foncArgs[cpt] is not 'self' :
+
         if foncArgs[cpt] is 'lfns' :
-          if isinstance( args[cpt] , list ):
-            opArgs['lfn'] = str( args[cpt][0] )
-          else :
-            opArgs['lfn'] = str( args[cpt] )
+          opArgs['lfn'] = self.getLFNSArgs( args[cpt] )
         else :
           opArgs[ str( foncArgs[cpt] )] = str( args[cpt] )
-      else :
-        opArgs[ str( foncArgs[cpt] )] = str( args[cpt] )
+        # end if is 'lfns'
+
       cpt += 1
+    # end while
 
     opArgs['name'] = self.name
-    opArgs['Who'] = DictStackOperation.getStackOperation( str( current_thread().ident ) ).parent
+    opArgs['caller'] = DictStackOperation.getStackOperation( str( current_thread().ident ) ).caller
 
     return opArgs
+
+
+
+
+  def getLFNSArgs( self, args ):
+    """ get the lfns from args"""
+
+    if isinstance( args , list ):
+      lfns = ''
+
+      for el in args :
+        lfns = lfns + str( el ) + ','
+
+      lfns = lfns[:-1]
+
+    else :
+      if isinstance( args , dict ):
+        lfns = ''
+
+        for el in args.keys() :
+          lfns = lfns + str( el ) + ','
+
+        lfns = lfns[:-1]
+      else :
+        lfns = str( args )
+
+    return lfns
+
+
+
+  def getStatusOperation (self, foncResult, operationFile):
+    successful = foncResult['Value']['Successful']
+    failed = foncResult['Value']['Failed']
+
+
+    for lfn in successful.keys() :
+      operationFile.addStatusOperation( StatusOperation( LFN( lfn ), 'successful' ) )
+
+    for lfn in failed.keys() :
+      operationFile.addStatusOperation( StatusOperation( LFN( lfn ), 'failed' ) )
+
 
 

@@ -19,7 +19,9 @@ class DictStackOperation :
         :param threadID: if of the thread
     """
     cls.lock.acquire()
-    res = cls.dict.setdefault( threadID, StackOperation() )
+    if threadID not in cls.dict:
+      cls.dict[threadID] = StackOperation()
+    res = cls.dict[threadID]
     cls.lock.release()
 
     return res

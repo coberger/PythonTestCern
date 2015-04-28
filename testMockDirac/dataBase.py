@@ -2,10 +2,12 @@
 from DIRAC              import S_OK, gConfig, gLogger, S_ERROR
 from OperationFile      import OperationFile
 from Sequence           import Sequence
+from LFN                import LFN
+from StatusOperation    import StatusOperation
 
 # from sqlalchemy
-from sqlalchemy import create_engine, func, Table, Column, MetaData, ForeignKey, Integer, String, DateTime, Enum, BLOB
-from sqlalchemy.orm import mapper, sessionmaker, relationship, backref
+from sqlalchemy         import create_engine, func, Table, Column, MetaData, ForeignKey, Integer, String, DateTime, Enum, BLOB
+from sqlalchemy.orm     import mapper, sessionmaker, relationship, backref
 
 
 
@@ -13,18 +15,36 @@ from sqlalchemy.orm import mapper, sessionmaker, relationship, backref
 # Metadata instance that is used to bind the engine, Object and tables
 metadata = MetaData()
 
+lfnTable = Table( 'LFN', metadata,
+                   Column( 'ID', Integer, primary_key = True ),
+                   Column( 'name', String( 255 ), unique = True ),
+                   mysql_engine = 'InnoDB' )
+
+mapper( LFN, lfnTable )
+
+
+statusOperationTable = Table( 'StatusOperation', metadata,
+                   Column( 'ID', Integer, primary_key = True ),
+                   Column( 'IDOp', Integer, ForeignKey( 'OperationFile.ID' ) ),
+                   Column( 'IDLFN', Integer, ForeignKey( 'LFN.ID' ) ),
+                   Column( 'status', Enum( 'Successful', 'Failed' ), server_default = 'Failed' ),
+                   mysql_engine = 'InnoDB' )
+
+mapper( StatusOperation, statusOperationTable, properties = { 'lfn' : relationship( LFN ) } )
+
+
 sequenceTable = Table( 'Sequence', metadata,
                    Column( 'ID', Integer, primary_key = True ),
                    mysql_engine = 'InnoDB' )
 
 mapper( Sequence, sequenceTable, properties = { 'operations' : relationship( OperationFile ) } )
 
+
 operationFileTable = Table( 'OperationFile', metadata,
                    Column( 'ID', Integer, primary_key = True ),
-                   Column( 'CreationTime', DateTime ),
+                   Column( 'creationTime', DateTime ),
                    Column( 'name', String( 255 ) ),
-                   Column( 'Who', String( 255 ) ),
-                   Column( 'Status', Enum( 'Done', 'Failed' ), server_default = 'Failed' ),
+                   Column( 'caller', String( 255 ) ),
                    Column( 'lfn', String( 255 ) ),
                    Column( 'srcSE', String( 255 ) ),
                    Column( 'dstSE', String( 255 ) ),
@@ -32,11 +52,11 @@ operationFileTable = Table( 'OperationFile', metadata,
                    Column( 'parent_id', Integer, ForeignKey( 'OperationFile.ID' ) ),
                    Column( 'sequence_id', Integer, ForeignKey( 'Sequence.ID' ) ),
                    Column( 'order', Integer ),
-                   # Column( 'parent_id', Integer ),
                    mysql_engine = 'InnoDB' )
 
 mapper( OperationFile, operationFileTable  , properties = { 'children' : relationship( OperationFile ),
-                                                            'sequence' : relationship( Sequence ) } )
+                                                            'sequence' : relationship( Sequence ),
+                                                            'status': relationship( StatusOperation ) } )
 
 
 class DataBase( object ):
@@ -56,11 +76,13 @@ class DataBase( object ):
     try:
       metadata.create_all( self.engine )
     except Exception, e:
+      print 'createTables ', e
       return S_ERROR( e )
     return S_OK()
 
 
   def putOperationFile( self, operationFile ):
+    """ put an operation file into database"""
     session = self.DBSession( expire_on_commit = True )
     try:
       # operationFile = session.merge( operationFile )
@@ -79,10 +101,21 @@ class DataBase( object ):
 
 
   def putSequence( self, sequence ):
-    session = self.DBSession( expire_on_commit = True )
+    """ put a sequence into database"""
+    session = self.DBSession()
+    sequence.stack.append( sequence.operations[0] )
+
+    while len( sequence.stack ) != 0 :
+      element = sequence.stack.pop()
+      for el in element.status :
+        res = self.putLFN( el.lfn , session )
+        el.lfn = res['Value']
+
+      for child in element.children :
+        sequence.stack.append( child )
+
     try:
 
-      # operationFile = session.merge( operationFile )
       session.add( sequence )
       session.commit()
       session.expunge_all()
@@ -95,6 +128,47 @@ class DataBase( object ):
       return S_ERROR( "putSequence: unexpected exception %s" % e )
     finally:
       session.close()
+
+
+
+  def putLFN( self, lfn, session ):
+    """ put a lfn into datbase"""
+    try:
+      instance = session.query( LFN ).filter_by( name = lfn.name ).first()
+      if not instance:
+        instance = LFN( lfn.name )
+        session.add( instance )
+        session.commit()
+
+      return S_OK( instance )
+
+    except Exception, e:
+      session.rollback()
+      gLogger.error( "putLFN: unexpected exception %s" % e )
+      return S_ERROR( "putLFN: unexpected exception %s" % e )
+
+
+  def getLFNOperation(self, lfn):
+    session = self.DBSession()
+    try:
+      operations = session.query( OperationFile, StatusOperation ).join( StatusOperation ).join( LFN ).filter( LFN.name == lfn ).all()
+      for row in operations :
+        print "%s %s %s %s %s %s" % ( row.OperationFile.ID, row.OperationFile.creationTime, row.OperationFile.name, lfn, row.OperationFile.caller, row.StatusOperation.status )
+
+    except Exception, e:
+      gLogger.error( "getLFNOperation: unexpected exception %s" % e )
+      return S_ERROR( "getLFNOperation: unexpected exception %s" % e )
+
+
+
+
+
+
+
+
+
+
+
 
 
 

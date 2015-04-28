@@ -17,10 +17,10 @@ class OperationFile( object ):
     """
 
     now = datetime.datetime.utcnow().replace( microsecond = 0 )
-    self.CreationTime = now
+    self.creationTime = now
     self.children = []
-    self.Status = "Failed"
-    self.who = None
+    self.status = []
+    self.caller = None
     self.name = None
     self.lfn = None
     self.srcSE = None
@@ -36,8 +36,16 @@ class OperationFile( object ):
       if value:
         setattr( self, key, value )
 
+    if isinstance( self.lfn , list ):
+      self.lfn = str( self.lfn )
+
+
   def addChild( self, child ):
     """
     Add a child into the children list
     """
     self.children.append( child )
+
+
+  def addStatusOperation( self, status ):
+    self.status.append( status )
