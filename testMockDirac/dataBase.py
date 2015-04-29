@@ -85,10 +85,8 @@ class DataBase( object ):
     """ put an operation file into database"""
     session = self.DBSession( expire_on_commit = True )
     try:
-      # operationFile = session.merge( operationFile )
       session.add( operationFile )
       session.commit()
-      # session.expunge_all()
 
       return S_OK( operationFile )
 
@@ -132,7 +130,9 @@ class DataBase( object ):
 
 
   def putLFN( self, lfn, session ):
-    """ put a lfn into datbase"""
+    """ put a lfn into datbase
+        if the lfn's name is already in data base
+    """
     try:
       instance = session.query( LFN ).filter_by( name = lfn.name ).first()
       if not instance:
@@ -147,21 +147,49 @@ class DataBase( object ):
       gLogger.error( "putLFN: unexpected exception %s" % e )
       return S_ERROR( "putLFN: unexpected exception %s" % e )
 
+    finally:
+      session.close
 
-  def getLFNOperation(self, lfn):
+
+
+  def getLFNSequence(self, lfn):
+    """
+      get all sequence about a lfn's name
+    """
     session = self.DBSession()
     try:
-      operations = session.query( OperationFile, StatusOperation ).join( StatusOperation ).join( LFN ).filter( LFN.name == lfn ).all()
+      operations = session.query( Sequence, OperationFile, StatusOperation ).join( OperationFile ).join( StatusOperation ).join( LFN ).filter( LFN.name == lfn ).all()
       for row in operations :
-        print "%s %s %s %s %s %s" % ( row.OperationFile.ID, row.OperationFile.creationTime, row.OperationFile.name, lfn, row.OperationFile.caller, row.StatusOperation.status )
+        print "%s %s %s %s %s %s %s" % (row.Sequence.ID, row.OperationFile.ID, row.OperationFile.creationTime,
+                                       row.OperationFile.name, lfn, row.OperationFile.caller, row.StatusOperation.status )
 
     except Exception, e:
       gLogger.error( "getLFNOperation: unexpected exception %s" % e )
       return S_ERROR( "getLFNOperation: unexpected exception %s" % e )
 
+    finally:
+      session.close
 
 
 
+  def getLFNOperation(self, lfn):
+    """
+      get all operation about a lfn's name
+    """
+    session = self.DBSession()
+    try:
+      operations = session.query( OperationFile, StatusOperation ).join( StatusOperation ).join( LFN ).filter( LFN.name == lfn ).all()
+      print operations
+      for row in operations :
+        print "%s %s %s %s %s %s" % ( row.OperationFile.ID, row.OperationFile.creationTime,
+                                       row.OperationFile.name, lfn, row.OperationFile.caller, row.StatusOperation.status )
+
+    except Exception, e:
+      gLogger.error( "getLFNOperation: unexpected exception %s" % e )
+      return S_ERROR( "getLFNOperation: unexpected exception %s" % e )
+
+    finally:
+      session.close
 
 
 

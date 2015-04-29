@@ -16,7 +16,7 @@ class DictStackOperation :
   @classmethod
   def getStackOperation( cls, threadID ):
     """ return the StackOperation associated to the threadID
-        :param threadID: if of the thread
+        :param threadID: id of the thread
     """
     cls.lock.acquire()
     if threadID not in cls.dict:

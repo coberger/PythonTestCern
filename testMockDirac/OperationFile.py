@@ -29,6 +29,7 @@ class OperationFile( object ):
     self.order = None
     self.sequence = None
 
+    # set the different attribute from dictionary 'fromDict'
     for key, value in fromDict.items():
       if type( value ) in StringTypes:
         value = value.encode()
@@ -36,8 +37,6 @@ class OperationFile( object ):
       if value:
         setattr( self, key, value )
 
-    if isinstance( self.lfn , list ):
-      self.lfn = str( self.lfn )
 
 
   def addChild( self, child ):
@@ -48,4 +47,7 @@ class OperationFile( object ):
 
 
   def addStatusOperation( self, status ):
+    """
+    Add a status into the status list
+    """
     self.status.append( status )

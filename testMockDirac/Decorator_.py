@@ -1,5 +1,4 @@
 from OperationFile          import OperationFile
-from OperationSequence      import OperationSequence
 from DictStackOperation     import DictStackOperation
 from StackOperation         import StackOperation
 from StatusOperation        import StatusOperation
@@ -46,14 +45,12 @@ def caller_name( skip = 2 ):
 class Decorator_( object ):
   """ decorator """
 
-  def __init__( self, fonc ):
+  def __init__( self, func ):
 
-    self.fonc = fonc
+    self.func = func
     self.name = None
-    self.order = None
-    self.stack = None
 
-    functools.wraps( fonc )( self )
+    functools.wraps( func )( self )
 
   def __get__( self, inst, owner = None ):
     return types.MethodType( self, inst )
@@ -63,44 +60,47 @@ class Decorator_( object ):
     """ method called each time when a decorate function is called
         get information about the function and create a stack of functions called
     """
-    self.name = self.fonc.__name__
+    self.name = self.func.__name__
 
     # here the test to know if it's the first operation and if we have to set the parent
     res = DictStackOperation.getStackOperation( str( current_thread().ident ) ).isCallerSet()
     if not res["OK"]:
       DictStackOperation.getStackOperation( str( current_thread().ident ) ).setCaller( caller_name() )
 
+    # get args of the decorate function
+    funcArgs = self.getFuncArgs( *args )
 
-    foncArgs = self.getFoncArgs( *args )
-    op = DictStackOperation.getStackOperation( str( current_thread().ident ) ).appendOperation( self.name, foncArgs )
+    # append new operation into the stack of the thread
+    op = DictStackOperation.getStackOperation( str( current_thread().ident ) ).appendOperation( self.name, funcArgs )
 
-    # call of the fonc
-    result = self.fonc( *args, **kwargs )
-    print result
+    # call of the func, result of the return of the decorate function
+    result = self.func( *args, **kwargs )
 
+    # now we get the status ( failed or successful) of operation 'op' in each lfn
     self.getStatusOperation( result, op )
 
+    # pop of the last operation of the stack
     res = DictStackOperation.getStackOperation( str( current_thread().ident ) ).popOperation()
 
     return result
 
 
-  def getFoncArgs( self, *args ):
+  def getFuncArgs( self, *args ):
     """ create a dict with the key and value of the decorate fonc"""
 
     # get key of args
-    foncArgs = inspect.getargspec( self.fonc )[0]
+    keyArgs = inspect.getargspec( self.func )[0]
 
     opArgs = dict()
     cpt = 0
     # create a dict with keys and values of fonc's arguments
     while cpt < len( args ) :
-      if foncArgs[cpt] is not 'self' :
+      if keyArgs[cpt] is not 'self' :
 
-        if foncArgs[cpt] is 'lfns' :
+        if keyArgs[cpt] is 'lfns' :
           opArgs['lfn'] = self.getLFNSArgs( args[cpt] )
         else :
-          opArgs[ str( foncArgs[cpt] )] = str( args[cpt] )
+          opArgs[ str( keyArgs[cpt] )] = str( args[cpt] )
         # end if is 'lfns'
 
       cpt += 1
@@ -115,24 +115,22 @@ class Decorator_( object ):
 
 
   def getLFNSArgs( self, args ):
-    """ get the lfns from args"""
+    """ get  lfn(s) from args, args can be a string, a list or a dictionary
+        return a string with lfn's name separate by ','
+    """
 
+    # if args is a list
     if isinstance( args , list ):
-      lfns = ''
-
-      for el in args :
-        lfns = lfns + str( el ) + ','
-
-      lfns = lfns[:-1]
+      lfns = ",".join( args )
 
     else :
+      # if args is a dictionary
       if isinstance( args , dict ):
-        lfns = ''
-
+        lfns = []
         for el in args.keys() :
-          lfns = lfns + str( el ) + ','
+          lfns .append( str( el ) )
+        lfns = ",".join( lfns )
 
-        lfns = lfns[:-1]
       else :
         lfns = str( args )
 
@@ -141,10 +139,16 @@ class Decorator_( object ):
 
 
   def getStatusOperation (self, foncResult, operationFile):
+    """ get status of 1 operation
+      :param foncResult: result of a decorate function
+      :param operationFile: operation in wich we have to add the status
+    """
+
+    # get the success and the fail
     successful = foncResult['Value']['Successful']
     failed = foncResult['Value']['Failed']
 
-
+    # we add one status operation for each success and fail into the OperationFile
     for lfn in successful.keys() :
       operationFile.addStatusOperation( StatusOperation( LFN( lfn ), 'successful' ) )
 

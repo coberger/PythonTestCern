@@ -1,5 +1,6 @@
 from DIRAC                  import S_OK, S_ERROR, gLogger
 
+from dataBase               import DataBase
 from OperationFile          import OperationFile
 from Sequence               import Sequence
 
@@ -9,7 +10,7 @@ from threading              import current_thread
 
 class StackOperation :
   """
-  This class permit to have the name, the order and the depth of each operation on files
+  This class permit to save operation on files by one thread
   """
 
   def __init__( self ):
@@ -22,12 +23,10 @@ class StackOperation :
 
   def appendOperation( self, operationName, args ):
     """
+    append an operation into the stack
     :param self: self reference
     :param operationName: name of the operation to append in the stack
-    append an operation into the stack
     """
-#     if  len( self.stack ) == 0 :
-#       self.parent = None
     op = OperationFile( args )
     self.stack.append( op )
 
@@ -70,20 +69,8 @@ class StackOperation :
     return S_OK()
 
 
-
-  def insertOperations( self, fileOperations ):
-    """ insert in bloc into database a list of operation"""
-    db = DataBase()
-    db.createTables()
-    res = db.putOperationFile( fileOperations )
-    if not res["OK"]:
-      gLogger.error( ' error' , res['Message'] )
-      exit()
-    return res
-
-
   def insertSequence( self, sequence ):
-    """ insert in bloc into database a list of operation"""
+    """ insert in bloc into database a sequence of operation"""
     db = DataBase()
     db.createTables()
     res = db.putSequence( sequence )
@@ -95,7 +82,6 @@ class StackOperation :
 
 
 
-from dataBase               import DataBase
 
 
 
