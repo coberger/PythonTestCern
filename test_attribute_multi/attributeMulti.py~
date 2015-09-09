@@ -1,0 +1,67 @@
+import time
+import sqlite3
+
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String,  create_engine, ForeignKey, Table
+from sqlalchemy.orm import scoped_session, sessionmaker,relationship
+
+Base = declarative_base()
+DBSession = None
+engine = None
+
+
+dataLoggingSequenceTable = Table( 'DLSequence', metadata,
+                   Column( 'sequenceID', Integer, primary_key = True ),
+                   Column( 'userName', String(2048),
+                   mysql_engine = 'InnoDB' )
+mapper( DLSequence, dataLoggingSequenceTable)
+
+dataLoggingSequenceTable = Table( 'DLAttributeSequence', metadata,
+                   Column( 'sequenceID', Integer, primary_key = True ),
+                   Column( 'userName', String(2048),
+                   mysql_engine = 'InnoDB' )
+mapper( DLSequence, dataLoggingSequenceTable)
+
+
+class DLSequence(object):
+	def __init__(self,un):
+		sequenceID = Column(Integer, ForeignKey('file.id'))
+		userName = un
+	
+def init_sqlalchemy():
+    global engine
+    global DBSession
+    engine = create_engine( 'mysql://Dirac:corent@127.0.0.1/testDiracDB', echo = True )
+    DBSession = sessionmaker()
+    DBSession.configure(bind=engine, autoflush=False)
+    Base.metadata.create_all(engine)
+  
+  
+def getFile(session,n):
+    instance = session.query( File ).filter_by( name = n ).first()
+    if not instance:
+        instance = File( name=n )
+        session.add( instance )
+        session.commit()
+    return instance
+  
+
+def test_insert():
+    init_sqlalchemy()
+    ses = DBSession()
+    for x in range(2) :
+		mc = MethodCall()
+		a1 = Action()
+		a2 = Action()
+		a1.lfn = getFile(ses, 'toto'+str(x))
+		a2.lfn = getFile(ses, 'toto'+str(x+10))
+		mc.actions.append(a1)
+		mc.actions.append(a2)
+		ses.merge(mc)
+    ses.commit()
+    
+
+if __name__ == '__main__':
+    test_insert()
+
+

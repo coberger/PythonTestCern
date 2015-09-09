@@ -24,7 +24,6 @@ class Child(Base):
     id = Column(Integer, primary_key=True)
     parent_id = Column(Integer, ForeignKey('parent.id'))
     babies = relationship("Baby",lazy='joined')
-    brother_id = Column(Integer, ForeignKey('child.id'))
     brother = relationship("Child",lazy='joined')
 
 class Baby(Base):

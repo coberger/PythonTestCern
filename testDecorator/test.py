@@ -3,7 +3,7 @@ import inspect, functools, types
 from threading import Thread, current_thread, Lock
 
 
-
+from DIRAC import S_OK, S_ERROR
 
 
 
@@ -76,22 +76,20 @@ def caller_name( skip = 2 ):
 class Decorator0( object ):
   module_name = None;
   def __init__( self, fonc, ):
-
+    print 'init'
     self.fonc = fonc
     functools.wraps( fonc )( self )
     self.caller = caller_name()
 
   def __get__( self, inst, owner = None ):
+    print inst, owner
     return types.MethodType( self, inst )
 
   def __call__( self, *args, **kwargs ):
     # call of the fonc
-    print ' call ', self.fonc.__name__
     caller = DictCaller.getCaller( current_thread().ident )
     if not caller :
        DictCaller.setCaller( current_thread().ident, caller_name() )
-    print 'decorate function  ' , current_thread().ident
-    print DictCaller.getCaller( current_thread().ident )
     result = self.fonc( *args, **kwargs )
 
     return result
@@ -126,7 +124,6 @@ def Decorator2( caller = None ):
       other = self.other_class( *cls_args )
 
       if caller :
-        print 'decorator class : ', current_thread().ident
         DictCaller.setCaller( current_thread().ident, caller )
 
         other.caller = caller
@@ -174,16 +171,22 @@ class ClientA( Thread ) :
   def run( self ):
     self.do()
 
-c0 = ClientA()
-# c1 = ClientB()
+#===============================================================================
+# c0 = ClientA()
+# # c1 = ClientB()
+#
+#
+# c0.start()
+# # c1.start()
+#
+# c0.join()
+# # c1.join()
+#===============================================================================
 
-print 'class of client A : ', c0.__class__
+ok = S_OK( 'a value str' )
+error = S_ERROR( 'an error message' )
 
-c0.start()
-# c1.start()
-
-c0.join()
-# c1.join()
-
+print ok
+print error
 
 

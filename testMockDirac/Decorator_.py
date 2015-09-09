@@ -53,6 +53,8 @@ class Decorator_( object ):
     functools.wraps( func )( self )
 
   def __get__( self, inst, owner = None ):
+    print "GET !"
+    self.inst = inst
     return types.MethodType( self, inst )
 
 
@@ -61,6 +63,8 @@ class Decorator_( object ):
         get information about the function and create a stack of functions called
     """
     self.name = self.func.__name__
+
+    print "%s %s" % ( self.name, hasattr( self.inst, 'toto' ) )
 
     # here the test to know if it's the first operation and if we have to set the parent
     res = DictStackOperation.getStackOperation( str( current_thread().ident ) ).isCallerSet()
@@ -73,9 +77,11 @@ class Decorator_( object ):
     # append new operation into the stack of the thread
     op = DictStackOperation.getStackOperation( str( current_thread().ident ) ).appendOperation( self.name, funcArgs )
 
-    # call of the func, result of the return of the decorate function
-    result = self.func( *args, **kwargs )
-
+    try :
+        # call of the func, result of the return of the decorate function
+        result = self.func( *args, **kwargs )
+    except :
+        raise
     # now we get the status ( failed or successful) of operation 'op' in each lfn
     self.getStatusOperation( result, op )
 

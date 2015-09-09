@@ -19,6 +19,7 @@ def splitIntoSuccFailed( lfns ):
 
 class TestFileCatalog:
 
+
   @Decorator_
   def addFile(self, lfns, seName):
     """Adding new file, registering them into seName"""
@@ -64,9 +65,14 @@ class TestStorageElement:
 
 class TestDataManager:
 
+  def __init__( self ):
+    self.toto = 'boom'
+
   @Decorator_
   def replicateAndRegister(self, lfns, srcSE, dstSE, timeout, protocol = 'srm'):
     """ replicate a file from one se to the other and register the new replicas"""
+
+    print "SELF %s" % self.toto
     fc = TestFileCatalog()
     se = TestStorageElement( dstSE )
 
@@ -126,6 +132,7 @@ class ClientA( Thread ):
 
   def doSomething(self):
     dm = TestDataManager()
+    print "TOTO %s" % dm.replicateAndRegister
     res = dm.replicateAndRegister( self.lfn, 'sourceSE', 'destSE', 1 )
     s = res['Value']['Successful']
     f = res['Value']['Failed']
@@ -165,6 +172,8 @@ class ClientB( Thread ):
 
 
 c1 = ClientA( ['A', 'B', 'C', 'D'] )
+
+
 c2 = ClientA( ['A', 'B', 'C', 'D'] )
 c3 = ClientA( ['A', 'B', 'C', 'D'] )
 c4 = ClientA( ['A', 'B', 'C', 'D'] )
@@ -177,14 +186,18 @@ c4 = ClientA( ['A', 'B', 'C', 'D'] )
 #===============================================================================
 
 c1.start()
-c2.start()
-c3.start()
-c4.start()
+#===============================================================================
+# c2.start()
+# c3.start()
+# c4.start()
+#===============================================================================
 
 c1.join()
-c2.join()
-c3.join()
-c4.join()
+#===============================================================================
+# c2.join()
+# c3.join()
+# c4.join()
+#===============================================================================
 #===============================================================================
 #
 # db = DataBase()

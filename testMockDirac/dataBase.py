@@ -55,7 +55,6 @@ operationFileTable = Table( 'OperationFile', metadata,
                    mysql_engine = 'InnoDB' )
 
 mapper( OperationFile, operationFileTable  , properties = { 'children' : relationship( OperationFile ),
-                                                            'sequence' : relationship( Sequence ),
                                                             'status': relationship( StatusOperation ) } )
 
 
