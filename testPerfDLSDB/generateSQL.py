@@ -18,6 +18,8 @@ print "SET FOREIGN_KEY_CHECKS = 0;"
 print "SET UNIQUE_CHECKS = 0;"
 print "SET AUTOCOMMIT = 0;"
 
+status = ['Successful','Failed']
+
 def generate_sub_tables():
   print "START TRANSACTION;"
   for i in range(nb_caller):
@@ -48,65 +50,46 @@ def generate_sequences():
   print "START TRANSACTION;"
   seq = "INSERT INTO DLSequence (callerID, groupID, userNameID, hostNameID) VALUES "
   mc= 'INSERT INTO DLMethodCall (creationTime, methodNameID, parentID, sequenceID, rank) VALUES'
+  actions = "INSERT INTO `DLAction` (`methodCallID`, `fileID`, status, `srcSEID`, `targetSEID`, extra, `errorMessage`, `errorCode`) VALUES"
   for i in range(nb_sequences) :
     toPrint = True
     seq += '(%s, %s, %s, %s),' %( random.randint(1,nb_caller),random.randint(1,nb_group),random.randint(1,nb_user),random.randint(1,nb_host))
     for j in range(nb_method_calls):
-      mc += " ('%s', %s, %s, %s, %s)," %(datetime.datetime.utcnow().replace( microsecond = 0 ), random.randint(1,30), 'null',  i+1 ,0 )
-      for a in range(random.randint(1,10)) :
+      mc += " ('%s', %s, %s, %s, %s)," %(datetime.datetime.utcnow().replace( microsecond = 0 ), random.randint(1,30), '%s'%('null' if j ==0 else (i * nb_method_calls +1)),  i+1 ,0 )
+      for a in range(random.randint(min_nb_actions,max_nb_actions)) :
           actions +="(%s, %s, '%s', %s, %s, '%s', '%s', %s),"\
-            %((cpt * 1000000*5)+(y*10000)+(w*5)+mc+1 , random.randint(1,nb_file), 'Successful',random.randint(1,nb_se),random.randint(1,nb_se),
+            %((i) * nb_method_calls + j+1 , random.randint(1,nb_file), status[random.randint(0,1)],random.randint(1,nb_se),random.randint(1,nb_se),
               'extra','errorMessage',random.randint(1,999) )
-      for x in range(4):
-        mc += " ('%s', %s, %s, %s, %s),"\
-         %(datetime.datetime.utcnow().replace( microsecond = 0 ), random.randint(1,30), ((i+1)*nb_method_calls)+1, i+1 ,x)
     if (i % 1000) == 0 :
       seq = seq[:-1]
       seq += ';'
       mc = mc[:-1]
       mc += ';'
+      actions = actions[:-1]
+      actions += ';'
       print seq
       print mc
+      print actions
       print "COMMIT;"
       print "START TRANSACTION;"
       seq = "INSERT INTO DLSequence (callerID, groupID, userNameID, hostNameID) VALUES "
       mc= 'INSERT INTO DLMethodCall (creationTime, methodNameID, parentID, sequenceID, rank) VALUES'
+      actions = "INSERT INTO `DLAction` (`methodCallID`, `fileID`, status, `srcSEID`, `targetSEID`, extra, `errorMessage`, `errorCode`) VALUES"
       toPrint = False
   if toPrint :
-    print seq
-    print mc
-  print "COMMIT;"
-
-for cpt in range (15):
-  mc= 'INSERT INTO DLMethodCall (creationTime, methodNameID, parentID, sequenceID, rank) VALUES'
-  for  y in  range(999999):
-      mc += " ('%s', %s, %s, %s, %s)," %(datetime.datetime.utcnow().replace( microsecond = 0 ), random.randint(1,30), 'null',  cpt * 1000000 +y+1 ,0 )
-      for x in range(4):
-        mc += " ('%s', %s, %s, %s, %s)," %(datetime.datetime.utcnow().replace( microsecond = 0 ), random.randint(1,30), (cpt * 1000000*5)+(y*5)+x+1, cpt * 1000000+y+1 ,x)
-   
-  mc += " ('%s', %s, %s, %s, %s)," %(datetime.datetime.utcnow().replace( microsecond = 0 ), random.randint(1,30), 'null',  (cpt+1) * 1000000 ,0 )
-  for x in range(3):
-    mc += " ('%s', %s, %s, %s, %s)," %(datetime.datetime.utcnow().replace( microsecond = 0 ), random.randint(1,30), ((cpt) * 1000000*5)+999999*5+x+1, (cpt+1) * 1000000 ,x  )
-  mc += " ('%s', %s, %s, %s, %s);" %(datetime.datetime.utcnow().replace( microsecond = 0 ), random.randint(1,30), ((cpt) * 1000000*5)+999999*5+4, (cpt+1) * 1000000 ,3 ) 
-  print mc
-  print "COMMIT;"
-  print "START TRANSACTION;"
-
-
-for cpt in range(3,15) :
-  for  y in  range(100):
-    actions = "INSERT INTO `DLAction` (`methodCallID`, `fileID`, status, `srcSEID`, `targetSEID`, extra, `errorMessage`, `errorCode`) VALUES"
-    for w in range(10000):
-      for mc in range(5) :
-        for a in range(random.randint(1,10)) :
-          actions +="(%s, %s, '%s', %s, %s, '%s', '%s', %s),"\
-            %((cpt * 1000000*5)+(y*10000)+(w*5)+mc+1 , random.randint(1,nb_file), 'Successful',random.randint(1,nb_se),random.randint(1,nb_se),
-              'extra','errorMessage',random.randint(1,999) )
+    seq = seq[:-1]
+    seq += ';'
+    mc = mc[:-1]
+    mc += ';'
     actions = actions[:-1]
     actions += ';'
+    print seq
+    print mc
     print actions
-    print "COMMIT;"
-    print "START TRANSACTION;"
+  print "COMMIT;"
+
+
+generate_sequences()
   
    
 print "SET FOREIGN_KEY_CHECKS = 1;"
